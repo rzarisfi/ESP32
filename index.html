@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Smart Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #50e3c2;
+            --background: #f5f7fa;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--background);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .temp-display {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        input[type="number"],
+        input[type="time"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .timer-section,
+        .scheduler-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #ddd;
+            margin-left: 10px;
+        }
+
+        .status-indicator.active {
+            background: #50e3c2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>کنترل هوشمند ESP32</h1>
+            
+            <div class="temp-display">
+                🌡️ دمای فعلی: <span id="tempValue">--</span>°C
+                <div class="status-indicator" id="tempStatus"></div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="tempChart"></canvas>
+            </div>
+
+            <div class="button-group">
+                <button onclick="sendCommand('ON')">
+                    <span>💡 روشن</span>
+                </button>
+                <button onclick="sendCommand('OFF')">
+                    <span>💡 خاموش</span>
+                </button>
+            </div>
+
+            <div class="timer-section">
+                <h3>تایمر خودکار</h3>
+                <input type="number" id="timerInput" placeholder="زمان به ثانیه">
+                <button onclick="setTimer()">⏲️ فعال سازی تایمر</button>
+            </div>
+
+            <div class="scheduler-section">
+                <h3>زمانبندی خودکار</h3>
+                <input type="time" id="onTime">
+                <input type="time" id="offTime">
+                <button onclick="enableScheduler()">⏰ فعال سازی زمانبندی</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const broker = 'wss://broker.emqx.io:8084/mqtt';
+        const tempTopic = 'esp32/temperature';
+        const ledTopic = 'esp32/led';
+        
+        let timer = null;
+        let scheduleCheck = null;
+        const tempData = {
+            labels: [],
+            values: []
+        };
+
+        // Initialize Chart
+        const ctx = document.getElementById('tempChart').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: tempData.labels,
+                datasets: [{
+                    label: 'دماسنج (°C)',
+                    data: tempData.values,
+                    borderColor: '#4a90e2',
+                    tension: 0.3,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // MQTT Connection
+        const client = mqtt.connect(broker);
+
+        client.on('connect', () => {
+            console.log('Connected to MQTT broker');
+            client.subscribe(tempTopic);
+        });
+
+        client.on('message', (topic, message) => {
+            if (topic === tempTopic) {
+                const temp = parseFloat(message);
+                updateTemperature(temp);
+                updateChart(temp);
+            }
+        });
+
+        function updateTemperature(temp) {
+            document.getElementById('tempValue').textContent = temp.toFixed(1);
+            const indicator = document.getElementById('tempStatus');
+            indicator.style.background = temp > 30 ? '#ff4757' : '#50e3c2';
+        }
+
+        function updateChart(temp) {
+            const now = new Date();
+            const time = `${now.getHours()}:${now.getMinutes()}`;
+            
+            tempData.labels.push(time);
+            tempData.values.push(temp);
+            
+            if (tempData.labels.length > 15) {
+                tempData.labels.shift();
+                tempData.values.shift();
+            }
+            
+            tempChart.update();
+        }
+
+        function sendCommand(cmd) {
+            client.publish(ledTopic, cmd);
+        }
+
+        // Timer Functions
+        function setTimer() {
+            const seconds = document.getElementById('timerInput').value;
+            if (seconds && seconds > 0) {
+                sendCommand('ON');
+                timer = setTimeout(() => {
+                    sendCommand('OFF');
+                    timer = null;
+                }, seconds * 1000);
+            }
+        }
+
+        // Scheduler Functions
+        function enableScheduler() {
+            const onTime = document.getElementById('onTime').value;
+            const offTime = document.getElementById('offTime').value;
+            
+            if (scheduleCheck) clearInterval(scheduleCheck);
+            
+            scheduleCheck = setInterval(() => {
+                const now = new Date();
+                const currentTime = now.getHours() + ':' + now.getMinutes();
+                
+                if (currentTime === onTime) sendCommand('ON');
+                if (currentTime === offTime) sendCommand('OFF');
+            }, 60000);
+        }
+    </script>
+</body>
+</html>
