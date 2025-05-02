@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ESP32 Smart Dashboard</title>
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://unpkg.com/mqtt@5.3.2/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -169,6 +169,10 @@
             background: var(--success);
         }
 
+        button.reset {
+            background: var(--warning);
+        }
+
         input[type="number"],
         input[type="time"],
         input[type="text"] {
@@ -300,6 +304,27 @@
             opacity: 1;
         }
 
+        .settings-display {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .settings-display p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-display i {
+            color: var(--primary);
+        }
+
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -400,12 +425,27 @@
                 <input type="time" id="onTime">
                 <label for="offTime">OFF Time:</label>
                 <input type="time" id="offTime">
-                <button onclick="enableScheduler()" class="success">
-                    <i class="fas fa-check-circle"></i> Enable Scheduler
-                </button>
-                <button onclick="disableScheduler()" class="danger" style="margin-top: 10px;">
-                    <i class="fas fa-times-circle"></i> Disable Scheduler
-                </button>
+                <div class="button-group">
+                    <button onclick="enableScheduler()" class="success">
+                        <i class="fas fa-check-circle"></i> Enable Scheduler
+                    </button>
+                    <button onclick="disableScheduler()" class="danger">
+                        <i class="fas fa-times-circle"></i> Disable Scheduler
+                    </button>
+                    <button onclick="requestSettings()" class="secondary">
+                        <i class="fas fa-cog"></i> Show Saved Settings
+                    </button>
+                    <button onclick="resetNVS()" class="reset">
+                        <i class="fas fa-trash-alt"></i> Reset NVS
+                    </button>
+                </div>
+                <div class="settings-display" id="settingsDisplay">
+                    <p><i class="fas fa-clock"></i> ON Time: <span id="savedOnTime">--</span></p>
+                    <p><i class="fas fa-clock"></i> OFF Time: <span id="savedOffTime">--</span></p>
+                    <p><i class="fas fa-toggle-on"></i> Scheduler: <span id="savedSchedulerStatus">--</span></p>
+                    <p><i class="fas fa-thermometer-low"></i> Min Temp: <span id="savedTempMin">--</span>°C</p>
+                    <p><i class="fas fa-thermometer-high"></i> Max Temp: <span id="savedTempMax">--</span>°C</p>
+                </div>
             </div>
         </div>
     </div>
@@ -458,6 +498,9 @@
         const timerTopic = 'esp32/timer';
         const scheduleTopic = 'esp32/schedule';
         const tempRangeTopic = 'esp32/temp_range';
+        const settingsTopic = 'esp32/settings';
+        const requestSettingsTopic = 'esp32/request_settings';
+        const resetNVSTopic = 'esp32/reset_nvs';
         
         const tempData = {
             labels: [],
@@ -525,13 +568,14 @@
         client.on('connect', () => {
             console.log('Connected to MQTT broker');
             updateConnectionStatus(true);
-            client.subscribe(tempTopic);
-            client.subscribe(ledTopic);
-            client.subscribe(heaterTopic);
-            client.subscribe(coolerTopic);
-            client.subscribe(timerTopic);
-            client.subscribe(scheduleTopic);
-            client.subscribe(tempRangeTopic);
+            client.subscribe(tempTopic, { qos: 1 });
+            client.subscribe(ledTopic, { qos: 1 });
+            client.subscribe(heaterTopic, { qos: 1 });
+            client.subscribe(coolerTopic, { qos: 1 });
+            client.subscribe(timerTopic, { qos: 1 });
+            client.subscribe(scheduleTopic, { qos: 1 });
+            client.subscribe(tempRangeTopic, { qos: 1 });
+            client.subscribe(settingsTopic, { qos: 1 });
         });
 
         client.on('reconnect', () => {
@@ -551,6 +595,7 @@
 
         client.on('message', (topic, message) => {
             const msg = message.toString();
+            console.log(`Received message on ${topic}: ${msg}`);
             
             if (topic === tempTopic) {
                 const temp = parseFloat(msg);
@@ -562,6 +607,14 @@
                 document.getElementById('heaterStatus').textContent = msg;
             } else if (topic === coolerTopic) {
                 document.getElementById('coolerStatus').textContent = msg;
+            } else if (topic === settingsTopic) {
+                const [onTime, offTime, enabled, tempMin, tempMax] = msg.split(',');
+                document.getElementById('savedOnTime').textContent = onTime || '--';
+                document.getElementById('savedOffTime').textContent = offTime || '--';
+                document.getElementById('savedSchedulerStatus').textContent = enabled === '1' ? 'Enabled' : 'Disabled';
+                document.getElementById('savedTempMin').textContent = parseFloat(tempMin).toFixed(1) || '--';
+                document.getElementById('savedTempMax').textContent = parseFloat(tempMax).toFixed(1) || '--';
+                showToast('Saved settings loaded');
             }
         });
 
@@ -600,15 +653,23 @@
         }
 
         function sendCommand(cmd) {
-            client.publish(ledTopic, cmd);
-            showToast(`Command sent: ${cmd}`);
+            if (client.connected) {
+                client.publish(ledTopic, cmd, { qos: 1 });
+                showToast(`Command sent: ${cmd}`);
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
         }
 
         function setTimer() {
             const seconds = parseInt(document.getElementById('timerInput').value);
             if (seconds && seconds > 0) {
-                client.publish(timerTopic, seconds.toString());
-                showToast(`Timer set for ${seconds} seconds`);
+                if (client.connected) {
+                    client.publish(timerTopic, seconds.toString(), { qos: 1 });
+                    showToast(`Timer set for ${seconds} seconds`);
+                } else {
+                    showToast('Not connected to MQTT broker', 'error');
+                }
             } else {
                 showToast('Please enter a valid time in seconds', 'error');
             }
@@ -623,17 +684,45 @@
                 return;
             }
             
-            const message = `${onTime},${offTime},1`;
-            client.publish(scheduleTopic, message);
-            showToast(`Scheduler enabled: ON at ${onTime}, OFF at ${offTime}`);
+            if (client.connected) {
+                const message = `${onTime},${offTime},1`;
+                client.publish(scheduleTopic, message, { qos: 1 });
+                showToast(`Scheduler enabled: ON at ${onTime}, OFF at ${offTime}`);
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
         }
 
         function disableScheduler() {
-            const onTime = document.getElementById('onTime').value;
-            const offTime = document.getElementById('offTime').value;
-            const message = `${onTime},${offTime},0`;
-            client.publish(scheduleTopic, message);
-            showToast('Scheduler disabled');
+            const onTime = document.getElementById('onTime').value || '00:00';
+            const offTime = document.getElementById('offTime').value || '00:00';
+            if (client.connected) {
+                const message = `${onTime},${offTime},0`;
+                client.publish(scheduleTopic, message, { qos: 1 });
+                showToast('Scheduler disabled');
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
+        }
+
+        function requestSettings() {
+            if (client.connected) {
+                client.publish(requestSettingsTopic, 'GET', { qos: 1 });
+                showToast('Requesting saved settings');
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
+        }
+
+        function resetNVS() {
+            if (client.connected) {
+                if (confirm('Are you sure you want to reset NVS? This will clear all saved settings.')) {
+                    client.publish(resetNVSTopic, 'RESET', { qos: 1 });
+                    showToast('NVS reset requested');
+                }
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
         }
 
         function setTempRange() {
@@ -645,9 +734,13 @@
                 return;
             }
             
-            const message = `${tempMin},${tempMax}`;
-            client.publish(tempRangeTopic, message);
-            showToast(`Temperature range set: ${tempMin}°C to ${tempMax}°C`);
+            if (client.connected) {
+                const message = `${tempMin},${tempMax}`;
+                client.publish(tempRangeTopic, message, { qos: 1 });
+                showToast(`Temperature range set: ${tempMin}°C to ${tempMax}°C`);
+            } else {
+                showToast('Not connected to MQTT broker', 'error');
+            }
         }
     </script>
 </body>
