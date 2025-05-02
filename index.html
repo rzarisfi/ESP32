@@ -224,6 +224,11 @@
             box-shadow: 0 0 10px var(--success);
         }
 
+        .status-indicator.warning {
+            background: var(--warning);
+            box-shadow: 0 0 10px var(--warning);
+        }
+
         .connection-status {
             display: flex;
             align-items: center;
@@ -342,6 +347,24 @@
                 <div class="connection-dot" id="connectionDot"></div>
                 <span id="connectionStatus">Disconnected</span>
             </div>
+
+            <div class="section">
+                <h3 class="section-title"><i class="fas fa-thermometer"></i> Temperature Range</h3>
+                <label for="tempMin">Min Temperature (°C):</label>
+                <input type="number" id="tempMin" placeholder="e.g., 20" min="0" max="50">
+                <label for="tempMax">Max Temperature (°C):</label>
+                <input type="number" id="tempMax" placeholder="e.g., 30" min="0" max="50">
+                <button onclick="setTempRange()" class="secondary">
+                    <i class="fas fa-check-circle"></i> Set Temperature Range
+                </button>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title"><i class="fas fa-plug"></i> Device Status</h3>
+                <div>LED: <span id="ledStatus">Unknown</span></div>
+                <div>Heater: <span id="heaterStatus">Unknown</span></div>
+                <div>Cooler: <span id="coolerStatus">Unknown</span></div>
+            </div>
         </div>
 
         <div class="card">
@@ -377,7 +400,7 @@
                 <input type="time" id="onTime">
                 <label for="offTime">OFF Time:</label>
                 <input type="time" id="offTime">
-                <button onclick="enableScheduler()">
+                <button onclick="enableScheduler()" class="success">
                     <i class="fas fa-check-circle"></i> Enable Scheduler
                 </button>
                 <button onclick="disableScheduler()" class="danger" style="margin-top: 10px;">
@@ -413,7 +436,6 @@
             toast.textContent = message;
             toast.className = 'toast show';
             
-            // Set border color based on type
             if (type === 'error') {
                 toast.style.borderLeftColor = 'var(--danger)';
             } else if (type === 'warning') {
@@ -431,10 +453,12 @@
         const broker = 'wss://broker.emqx.io:8084/mqtt';
         const tempTopic = 'esp32/temperature';
         const ledTopic = 'esp32/led';
-        const statusTopic = 'esp32/status';
+        const heaterTopic = 'esp32/heater';
+        const coolerTopic = 'esp32/cooler';
+        const timerTopic = 'esp32/timer';
+        const scheduleTopic = 'esp32/schedule';
+        const tempRangeTopic = 'esp32/temp_range';
         
-        let timer = null;
-        let scheduleCheck = null;
         const tempData = {
             labels: [],
             values: []
@@ -502,7 +526,12 @@
             console.log('Connected to MQTT broker');
             updateConnectionStatus(true);
             client.subscribe(tempTopic);
-            client.subscribe(statusTopic);
+            client.subscribe(ledTopic);
+            client.subscribe(heaterTopic);
+            client.subscribe(coolerTopic);
+            client.subscribe(timerTopic);
+            client.subscribe(scheduleTopic);
+            client.subscribe(tempRangeTopic);
         });
 
         client.on('reconnect', () => {
@@ -527,8 +556,12 @@
                 const temp = parseFloat(msg);
                 updateTemperature(temp);
                 updateChart(temp);
-            } else if (topic === statusTopic) {
-                updateDeviceStatus(msg);
+            } else if (topic === ledTopic) {
+                document.getElementById('ledStatus').textContent = msg;
+            } else if (topic === heaterTopic) {
+                document.getElementById('heaterStatus').textContent = msg;
+            } else if (topic === coolerTopic) {
+                document.getElementById('coolerStatus').textContent = msg;
             }
         });
 
@@ -543,11 +576,6 @@
                 dot.className = 'connection-dot';
                 status.textContent = 'Disconnected';
             }
-        }
-
-        function updateDeviceStatus(status) {
-            console.log('Device status:', status);
-            // You can add visual feedback for device status here
         }
 
         function updateTemperature(temp) {
@@ -576,26 +604,16 @@
             showToast(`Command sent: ${cmd}`);
         }
 
-        // Timer Functions
         function setTimer() {
             const seconds = parseInt(document.getElementById('timerInput').value);
             if (seconds && seconds > 0) {
-                sendCommand('ON');
-                if (timer) clearTimeout(timer);
-                
-                timer = setTimeout(() => {
-                    sendCommand('OFF');
-                    timer = null;
-                    showToast('Timer completed - Device turned OFF');
-                }, seconds * 1000);
-                
+                client.publish(timerTopic, seconds.toString());
                 showToast(`Timer set for ${seconds} seconds`);
             } else {
                 showToast('Please enter a valid time in seconds', 'error');
             }
         }
 
-        // Scheduler Functions
         function enableScheduler() {
             const onTime = document.getElementById('onTime').value;
             const offTime = document.getElementById('offTime').value;
@@ -605,46 +623,31 @@
                 return;
             }
             
-            if (scheduleCheck) clearInterval(scheduleCheck);
-            
-            // Immediate check in case current time matches schedule
-            checkSchedule();
-            
-            // Set up interval for checking every minute
-            scheduleCheck = setInterval(checkSchedule, 60000);
-            
+            const message = `${onTime},${offTime},1`;
+            client.publish(scheduleTopic, message);
             showToast(`Scheduler enabled: ON at ${onTime}, OFF at ${offTime}`);
         }
 
         function disableScheduler() {
-            if (scheduleCheck) {
-                clearInterval(scheduleCheck);
-                scheduleCheck = null;
-                showToast('Scheduler disabled');
-            } else {
-                showToast('No active scheduler to disable', 'warning');
-            }
-        }
-
-        function checkSchedule() {
             const onTime = document.getElementById('onTime').value;
             const offTime = document.getElementById('offTime').value;
+            const message = `${onTime},${offTime},0`;
+            client.publish(scheduleTopic, message);
+            showToast('Scheduler disabled');
+        }
+
+        function setTempRange() {
+            const tempMin = parseFloat(document.getElementById('tempMin').value);
+            const tempMax = parseFloat(document.getElementById('tempMax').value);
             
-            if (!onTime || !offTime) return;
-            
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const currentTime = `${hours}:${minutes}`;
-            
-            if (currentTime === onTime) {
-                sendCommand('ON');
-                showToast(`Scheduled ON at ${currentTime}`);
+            if (isNaN(tempMin) || isNaN(tempMax) || tempMin >= tempMax) {
+                showToast('Please enter valid temperature range (Min < Max)', 'error');
+                return;
             }
-            if (currentTime === offTime) {
-                sendCommand('OFF');
-                showToast(`Scheduled OFF at ${currentTime}`);
-            }
+            
+            const message = `${tempMin},${tempMax}`;
+            client.publish(tempRangeTopic, message);
+            showToast(`Temperature range set: ${tempMin}°C to ${tempMax}°C`);
         }
     </script>
 </body>
