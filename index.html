@@ -64,6 +64,7 @@
             padding: 10px 0;
             border-bottom: 1px solid var(--border);
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .theme-toggle {
@@ -350,6 +351,7 @@
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-microchip"></i> ESP32 Smart Dashboard</h1>
+            <h2 style="color: var(--secondary);"><i class="fas fa-clock"></i> ESP Time: <span id="espTime">--:--:--</span></h2>
             <button class="theme-toggle" id="themeToggle">
                 <i class="fas fa-sun"></i> Light Mode
             </button>
@@ -501,6 +503,7 @@
         const settingsTopic = 'esp32/settings';
         const requestSettingsTopic = 'esp32/request_settings';
         const resetNVSTopic = 'esp32/reset_nvs';
+        const timeTopic = 'esp32/time';
         
         const tempData = {
             labels: [],
@@ -576,6 +579,7 @@
             client.subscribe(scheduleTopic, { qos: 1 });
             client.subscribe(tempRangeTopic, { qos: 1 });
             client.subscribe(settingsTopic, { qos: 1 });
+            client.subscribe(timeTopic, { qos: 1 });
         });
 
         client.on('reconnect', () => {
@@ -615,6 +619,8 @@
                 document.getElementById('savedTempMin').textContent = parseFloat(tempMin).toFixed(1) || '--';
                 document.getElementById('savedTempMax').textContent = parseFloat(tempMax).toFixed(1) || '--';
                 showToast('Saved settings loaded');
+            } else if (topic === timeTopic) {
+                document.getElementById('espTime').textContent = msg;
             }
         });
 
