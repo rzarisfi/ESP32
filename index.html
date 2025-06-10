@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,12 +47,16 @@
             min-height: 100vh;
             transition: all 0.3s ease;
         }
+        
+        html[dir="rtl"] body {
+            font-family: 'Tahoma', 'Arial', sans-serif;
+        }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -64,10 +68,14 @@
             padding: 10px 0;
             border-bottom: 1px solid var(--border);
             margin-bottom: 20px;
-            flex-wrap: wrap;
         }
 
-        .theme-toggle {
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .theme-toggle, .lang-toggle {
             background: var(--card-bg);
             border: none;
             border-radius: 50px;
@@ -82,7 +90,7 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
-        .theme-toggle:hover {
+        .theme-toggle:hover, .lang-toggle:hover {
             background: var(--card-hover);
             transform: translateY(-2px);
         }
@@ -175,12 +183,12 @@
         }
 
         input[type="number"],
-        input[type="time"],
         input[type="text"] {
             padding: 12px 15px;
             border: 1px solid var(--border);
             border-radius: 8px;
             width: 100%;
+            box-sizing: border-box;
             margin: 10px 0;
             background: var(--card-bg);
             color: var(--text-primary);
@@ -191,6 +199,32 @@
         input:focus {
             outline: none;
             border-color: var(--primary);
+        }
+        
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .time-input-group input[type="number"] {
+            width: 80px;
+            text-align: center;
+            margin: 0;
+            -moz-appearance: textfield; /* Firefox */
+        }
+        
+        .time-input-group input[type=number]::-webkit-inner-spin-button,
+        .time-input-group input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        .time-input-group span {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding-bottom: 10px;
         }
 
         .section {
@@ -262,7 +296,7 @@
 
         .tooltip .tooltiptext {
             visibility: hidden;
-            width: 120px;
+            width: 140px;
             background-color: var(--card-bg);
             color: var(--text-primary);
             text-align: center;
@@ -298,6 +332,13 @@
             transition: all 0.3s ease;
             z-index: 1000;
             border-left: 4px solid var(--success);
+        }
+        
+        html[dir="rtl"] .toast {
+            right: auto;
+            left: 20px;
+            border-left: none;
+            border-right: 4px solid var(--success);
         }
 
         .toast.show {
@@ -350,15 +391,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-microchip"></i> ESP32 Smart Dashboard</h1>
-            <h2 style="color: var(--secondary);"><i class="fas fa-clock"></i> ESP Time: <span id="espTime">--:--:--</span></h2>
-            <button class="theme-toggle" id="themeToggle">
-                <i class="fas fa-sun"></i> Light Mode
-            </button>
+            <h1 data-lang-key="dashboardTitle"><i class="fas fa-microchip"></i> ESP32 Smart Dashboard</h1>
+            <div class="header-buttons">
+                <button class="lang-toggle" id="langToggle">
+                    <i class="fas fa-language"></i> <span data-lang-key="langSwitch"></span>
+                </button>
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-sun"></i> <span data-lang-key="themeSwitchLight"></span>
+                </button>
+            </div>
         </div>
 
+        <!-- Card 1: Monitoring -->
         <div class="card">
-            <h2 class="card-title"><i class="fas fa-thermometer-half"></i> Temperature Monitoring</h2>
+            <h2 class="card-title" data-lang-key="tempMonitoring"><i class="fas fa-thermometer-half"></i> Temperature Monitoring</h2>
             
             <div class="temp-display">
                 <i class="fas fa-temperature-high temp-icon"></i>
@@ -372,82 +418,101 @@
 
             <div class="connection-status">
                 <div class="connection-dot" id="connectionDot"></div>
-                <span id="connectionStatus">Disconnected</span>
+                <span id="connectionStatus" data-lang-key="disconnected">Disconnected</span>
             </div>
 
             <div class="section">
-                <h3 class="section-title"><i class="fas fa-thermometer"></i> Temperature Range</h3>
-                <label for="tempMin">Min Temperature (°C):</label>
+                <h3 class="section-title" data-lang-key="tempRange"><i class="fas fa-thermometer"></i> Temperature Range</h3>
+                <label for="tempMin" data-lang-key="minTemp">Min Temperature (°C):</label>
                 <input type="number" id="tempMin" placeholder="e.g., 20" min="0" max="50">
-                <label for="tempMax">Max Temperature (°C):</label>
+                <label for="tempMax" data-lang-key="maxTemp">Max Temperature (°C):</label>
                 <input type="number" id="tempMax" placeholder="e.g., 30" min="0" max="50">
                 <button onclick="setTempRange()" class="secondary">
-                    <i class="fas fa-check-circle"></i> Set Temperature Range
+                    <i class="fas fa-check-circle"></i> <span data-lang-key="setRange">Set Range</span>
                 </button>
             </div>
 
             <div class="section">
-                <h3 class="section-title"><i class="fas fa-plug"></i> Device Status</h3>
-                <div>LED: <span id="ledStatus">Unknown</span></div>
-                <div>Heater: <span id="heaterStatus">Unknown</span></div>
-                <div>Cooler: <span id="coolerStatus">Unknown</span></div>
+                <h3 class="section-title" data-lang-key="deviceStatus"><i class="fas fa-plug"></i> Device Status</h3>
+                <div><span data-lang-key="led">LED</span>: <span id="ledStatus" data-lang-key="unknown">Unknown</span></div>
+                <div><span data-lang-key="heater">Heater</span>: <span id="heaterStatus" data-lang-key="unknown">Unknown</span></div>
+                <div><span data-lang-key="cooler">Cooler</span>: <span id="coolerStatus" data-lang-key="unknown">Unknown</span></div>
             </div>
         </div>
 
+        <!-- Card 2: Control -->
         <div class="card">
-            <h2 class="card-title"><i class="fas fa-lightbulb"></i> Device Control</h2>
+            <h2 class="card-title" data-lang-key="deviceControl"><i class="fas fa-cogs"></i> Device Control</h2>
             
             <div class="button-group">
                 <button onclick="sendCommand('ON')" class="success">
-                    <i class="fas fa-power-off"></i> Turn ON
+                    <i class="fas fa-power-off"></i> <span data-lang-key="turnOn">Turn ON</span>
                 </button>
                 <button onclick="sendCommand('OFF')" class="danger">
-                    <i class="fas fa-power-off"></i> Turn OFF
-                </button>
-                <button onclick="sendCommand('TOGGLE')" class="secondary">
-                    <i class="fas fa-sync-alt"></i> Toggle
+                    <i class="fas fa-power-off"></i> <span data-lang-key="turnOff">Turn OFF</span>
                 </button>
             </div>
 
             <div class="section">
-                <h3 class="section-title"><i class="fas fa-clock"></i> Timer Settings</h3>
-                <input type="number" id="timerInput" placeholder="Time in seconds" min="1">
+                <h3 class="section-title" data-lang-key="timerSettings"><i class="fas fa-clock"></i> Timer Settings</h3>
+                <input type="number" id="timerInput" min="1">
                 <button onclick="setTimer()" class="secondary">
-                    <i class="fas fa-hourglass-start"></i> Set Timer
+                    <i class="fas fa-hourglass-start"></i> <span data-lang-key="setTimer">Set Timer</span>
                 </button>
             </div>
 
             <div class="section">
-                <h3 class="section-title"><i class="fas fa-calendar-alt"></i> Scheduler</h3>
+                <h3 class="section-title" data-lang-key="scheduler"><i class="fas fa-calendar-alt"></i> Scheduler</h3>
                 <div class="tooltip">
                     <i class="fas fa-info-circle"></i>
-                    <span class="tooltiptext">Set 24-hour format times</span>
+                    <span class="tooltiptext" data-lang-key="schedulerTooltip">Set 24-hour format times</span>
                 </div>
-                <label for="onTime">ON Time:</label>
-                <input type="time" id="onTime">
-                <label for="offTime">OFF Time:</label>
-                <input type="time" id="offTime">
+                
+                <label data-lang-key="onTime">ON Time:</label>
+                <div class="time-input-group">
+                    <input type="number" id="onTimeHour" placeholder="HH" min="0" max="23">
+                    <span>:</span>
+                    <input type="number" id="onTimeMinute" placeholder="MM" min="0" max="59">
+                </div>
+                
+                <label data-lang-key="offTime">OFF Time:</label>
+                <div class="time-input-group">
+                    <input type="number" id="offTimeHour" placeholder="HH" min="0" max="23">
+                    <span>:</span>
+                    <input type="number" id="offTimeMinute" placeholder="MM" min="0" max="59">
+                </div>
+
                 <div class="button-group">
                     <button onclick="enableScheduler()" class="success">
-                        <i class="fas fa-check-circle"></i> Enable Scheduler
+                        <i class="fas fa-check-circle"></i> <span data-lang-key="enableScheduler">Enable</span>
                     </button>
                     <button onclick="disableScheduler()" class="danger">
-                        <i class="fas fa-times-circle"></i> Disable Scheduler
+                        <i class="fas fa-times-circle"></i> <span data-lang-key="disableScheduler">Disable</span>
                     </button>
                     <button onclick="requestSettings()" class="secondary">
-                        <i class="fas fa-cog"></i> Show Saved Settings
+                        <i class="fas fa-cog"></i> <span data-lang-key="showSavedSettings">Show Saved</span>
                     </button>
                     <button onclick="resetNVS()" class="reset">
-                        <i class="fas fa-trash-alt"></i> Reset NVS
+                        <i class="fas fa-trash-alt"></i> <span data-lang-key="resetNVS">Reset NVS</span>
                     </button>
                 </div>
                 <div class="settings-display" id="settingsDisplay">
-                    <p><i class="fas fa-clock"></i> ON Time: <span id="savedOnTime">--</span></p>
-                    <p><i class="fas fa-clock"></i> OFF Time: <span id="savedOffTime">--</span></p>
-                    <p><i class="fas fa-toggle-on"></i> Scheduler: <span id="savedSchedulerStatus">--</span></p>
-                    <p><i class="fas fa-thermometer-low"></i> Min Temp: <span id="savedTempMin">--</span>°C</p>
-                    <p><i class="fas fa-thermometer-high"></i> Max Temp: <span id="savedTempMax">--</span>°C</p>
+                    <p><i class="fas fa-clock"></i> <span data-lang-key="onTime">ON Time</span>: <span id="savedOnTime">--</span></p>
+                    <p><i class="fas fa-clock"></i> <span data-lang-key="offTime">OFF Time</span>: <span id="savedOffTime">--</span></p>
+                    <p><i class="fas fa-toggle-on"></i> <span data-lang-key="scheduler">Scheduler</span>: <span id="savedSchedulerStatus">--</span></p>
+                    <p><i class="fas fa-thermometer-low"></i> <span data-lang-key="minTempShort">Min Temp</span>: <span id="savedTempMin">--</span>°C</p>
+                    <p><i class="fas fa-thermometer-high"></i> <span data-lang-key="maxTempShort">Max Temp</span>: <span id="savedTempMax">--</span>°C</p>
                 </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title" data-lang-key="timeCheck"><i class="fas fa-satellite-dish"></i> ESP Time Check</h3>
+                <button onclick="requestEspTime()" class="secondary">
+                    <i class="fas fa-sync"></i> <span data-lang-key="getEspTime">Get ESP32 Time</span>
+                </button>
+                <p style="margin-top: 15px; text-align: center; font-size: 1.1rem;">
+                    <span data-lang-key="espTime">ESP32 Time</span>: <span id="espTimeDisplay" style="font-weight: bold; color: var(--accent);">--:--:--</span>
+                </p>
             </div>
         </div>
     </div>
@@ -455,35 +520,181 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // Theme Toggle
+        // --- Internationalization (i18n) ---
+        const translations = {
+            en: {
+                dashboardTitle: 'ESP32 Smart Dashboard',
+                langSwitch: 'فارسی',
+                themeSwitchLight: 'Light Mode',
+                themeSwitchDark: 'Dark Mode',
+                tempMonitoring: 'Temperature Monitoring',
+                disconnected: 'Disconnected',
+                connected: 'Connected to MQTT',
+                tempRange: 'Temperature Range',
+                minTemp: 'Min Temperature (°C):',
+                maxTemp: 'Max Temperature (°C):',
+                setRange: 'Set Range',
+                deviceStatus: 'Device Status',
+                led: 'LED',
+                heater: 'Heater',
+                cooler: 'Cooler',
+                unknown: 'Unknown',
+                deviceControl: 'Device Control',
+                turnOn: 'Turn ON',
+                turnOff: 'Turn OFF',
+                timerSettings: 'Timer Settings',
+                timerPlaceholder: 'Time in seconds',
+                setTimer: 'Set Timer',
+                scheduler: 'Scheduler',
+                schedulerTooltip: 'Set 24-hour format times',
+                onTime: 'ON Time:',
+                offTime: 'OFF Time:',
+                enableScheduler: 'Enable',
+                disableScheduler: 'Disable',
+                showSavedSettings: 'Show Saved',
+                resetNVS: 'Reset NVS',
+                minTempShort: 'Min Temp',
+                maxTempShort: 'Max Temp',
+                timeCheck: 'ESP Time Check',
+                getEspTime: 'Get ESP32 Time',
+                espTime: 'ESP32 Time',
+                chartLabel: 'Temperature (°C)',
+                enabled: 'Enabled',
+                disabled: 'Disabled',
+                // Toasts
+                toastCommandSent: 'Command sent: ',
+                toastNotConnected: 'Not connected to MQTT broker',
+                toastTimerSet: (s) => `Timer set for ${s} seconds`,
+                toastInvalidTime: 'Please enter a valid time in seconds',
+                toastSchedulerEnabled: (on, off) => `Scheduler enabled: ON at ${on}, OFF at ${off}`,
+                toastSchedulerDisabled: 'Scheduler disabled',
+                toastSetTimeError: 'Please enter a valid ON and OFF time (HH:MM)',
+                toastSettingsRequested: 'Requesting saved settings...',
+                toastSettingsLoaded: 'Saved settings loaded',
+                toastNvsResetConfirm: 'Are you sure you want to reset NVS? This will clear all saved settings.',
+                toastNvsResetRequested: 'NVS reset requested',
+                toastTimeRequested: 'Requesting ESP32 time...',
+                toastTimeReceived: (t) => `ESP32 time received: ${t}`,
+                toastInvalidTempRange: 'Please enter valid temperature range (Min < Max)',
+                toastTempRangeSet: (min, max) => `Temperature range set: ${min}°C to ${max}°C`,
+            },
+            fa: {
+                dashboardTitle: 'داشبورد هوشمند ESP32',
+                langSwitch: 'English',
+                themeSwitchLight: 'حالت روشن',
+                themeSwitchDark: 'حالت تاریک',
+                tempMonitoring: 'نظارت بر دما',
+                disconnected: 'قطع',
+                connected: 'متصل به MQTT',
+                tempRange: 'محدوده دما',
+                minTemp: 'حداقل دما (°C):',
+                maxTemp: 'حداکثر دما (°C):',
+                setRange: 'تنظیم محدوده',
+                deviceStatus: 'وضعیت دستگاه‌ها',
+                led: 'ال‌ای‌دی',
+                heater: 'بخاری',
+                cooler: 'کولر',
+                unknown: 'نامشخص',
+                deviceControl: 'کنترل دستگاه',
+                turnOn: 'روشن کردن',
+                turnOff: 'خاموش کردن',
+                timerSettings: 'تنظیمات تایمر',
+                timerPlaceholder: 'زمان به ثانیه',
+                setTimer: 'تنظیم تایمر',
+                scheduler: 'زمان‌بندی',
+                schedulerTooltip: 'زمان را با فرمت ۲۴ ساعته وارد کنید',
+                onTime: 'زمان روشن شدن:',
+                offTime: 'زمان خاموش شدن:',
+                enableScheduler: 'فعال کردن',
+                disableScheduler: 'غیرفعال کردن',
+                showSavedSettings: 'نمایش ذخیره شده',
+                resetNVS: 'بازنشانی حافظه',
+                minTempShort: 'حداقل دما',
+                maxTempShort: 'حداکثر دما',
+                timeCheck: 'بررسی زمان دستگاه',
+                getEspTime: 'دریافت زمان ESP32',
+                espTime: 'زمان ESP32',
+                chartLabel: 'دما (°C)',
+                enabled: 'فعال',
+                disabled: 'غیرفعال',
+                // Toasts
+                toastCommandSent: 'فرمان ارسال شد: ',
+                toastNotConnected: 'به کارگزار MQTT متصل نیستید',
+                toastTimerSet: (s) => `تایمر برای ${s} ثانیه تنظیم شد`,
+                toastInvalidTime: 'لطفاً زمان معتبری به ثانیه وارد کنید',
+                toastSchedulerEnabled: (on, off) => `زمان‌بندی فعال شد: روشن در ${on}، خاموش در ${off}`,
+                toastSchedulerDisabled: 'زمان‌بندی غیرفعال شد',
+                toastSetTimeError: 'لطفا زمان معتبر برای روشن و خاموش شدن وارد کنید (HH:MM)',
+                toastSettingsRequested: 'در حال درخواست تنظیمات ذخیره شده...',
+                toastSettingsLoaded: 'تنظیمات ذخیره شده بارگذاری شد',
+                toastNvsResetConfirm: 'آیا از بازنشانی حافظه دستگاه مطمئن هستید؟ تمام تنظیمات پاک خواهند شد.',
+                toastNvsResetRequested: 'درخواست بازنشانی حافظه ارسال شد',
+                toastTimeRequested: 'در حال درخواست زمان از ESP32...',
+                toastTimeReceived: (t) => `زمان دستگاه دریافت شد: ${t}`,
+                toastInvalidTempRange: 'لطفاً یک محدوده دمای معتبر وارد کنید (حداقل < حداکثر)',
+                toastTempRangeSet: (min, max) => `محدوده دما تنظیم شد: از ${min}°C تا ${max}°C`,
+            }
+        };
+
+        let currentLanguage = 'en';
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            const direction = lang === 'fa' ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            document.documentElement.dir = direction;
+
+            document.querySelectorAll('[data-lang-key]').forEach(elem => {
+                const key = elem.getAttribute('data-lang-key');
+                const translation = translations[lang][key];
+                if (translation && typeof translation !== 'function') {
+                     // Only update innerHTML for static strings, not functions
+                    const iconHTML = elem.querySelector('i')?.outerHTML || '';
+                    elem.innerHTML = iconHTML + " " + translation;
+                }
+            });
+            
+            document.getElementById('timerInput').placeholder = translations[lang].timerPlaceholder;
+            document.getElementById('onTimeHour').placeholder = lang === 'en' ? 'HH' : 'ساعت';
+            document.getElementById('onTimeMinute').placeholder = lang === 'en' ? 'MM' : 'دقیقه';
+            document.getElementById('offTimeHour').placeholder = lang === 'en' ? 'HH' : 'ساعت';
+            document.getElementById('offTimeMinute').placeholder = lang === 'en' ? 'MM' : 'دقیقه';
+
+            tempChart.data.datasets[0].label = translations[lang].chartLabel;
+            tempChart.update();
+            updateThemeButtonText();
+            updateConnectionStatus(client.connected);
+        }
+
         const themeToggle = document.getElementById('themeToggle');
         themeToggle.addEventListener('click', () => {
             document.body.classList.toggle('light-mode');
-            const icon = themeToggle.querySelector('i');
-            if (document.body.classList.contains('light-mode')) {
-                icon.className = 'fas fa-moon';
-                themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark Mode';
-            } else {
-                icon.className = 'fas fa-sun';
-                themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light Mode';
-            }
+            updateThemeButtonText();
         });
 
-        // Initialize with dark mode
-        document.body.classList.remove('light-mode');
+        function updateThemeButtonText() {
+            const isLight = document.body.classList.contains('light-mode');
+            const key = isLight ? 'themeSwitchDark' : 'themeSwitchLight';
+            const icon = isLight ? 'fa-moon' : 'fa-sun';
+            themeToggle.innerHTML = `<i class="fas ${icon}"></i> <span>${translations[currentLanguage][key]}</span>`;
+        }
+        
+        const langToggle = document.getElementById('langToggle');
+        langToggle.addEventListener('click', () => {
+            const newLang = currentLanguage === 'en' ? 'fa' : 'en';
+            setLanguage(newLang);
+        });
 
-        // Toast Notification
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.className = 'toast show';
             
-            if (type === 'error') {
-                toast.style.borderLeftColor = 'var(--danger)';
-            } else if (type === 'warning') {
-                toast.style.borderLeftColor = 'var(--warning)';
+            const toastBorderColor = type === 'error' ? 'var(--danger)' : (type === 'warning' ? 'var(--warning)' : 'var(--success)');
+            if (document.documentElement.dir === 'rtl') {
+                toast.style.borderRightColor = toastBorderColor;
             } else {
-                toast.style.borderLeftColor = 'var(--success)';
+                toast.style.borderLeftColor = toastBorderColor;
             }
             
             setTimeout(() => {
@@ -491,36 +702,34 @@
             }, 3000);
         }
 
-        // MQTT Configuration
         const broker = 'wss://broker.emqx.io:8084/mqtt';
-        const tempTopic = 'esp32/zarisfi/temperature';
-        const ledTopic = 'esp32/led';
-        const heaterTopic = 'esp32/heater';
-        const coolerTopic = 'esp32/cooler';
-        const timerTopic = 'esp32/timer';
-        const scheduleTopic = 'esp32/schedule';
-        const tempRangeTopic = 'esp32/temp_range';
-        const settingsTopic = 'esp32/settings';
-        const requestSettingsTopic = 'esp32/request_settings';
-        const resetNVSTopic = 'esp32/reset_nvs';
-        const timeTopic = 'esp32/time';
-        
-        const tempData = {
-            labels: [],
-            values: []
+        const topics = {
+            temp: 'esp32/zarisfi/temperature',
+            led: 'esp32/led',
+            heater: 'esp32/heater',
+            cooler: 'esp32/cooler',
+            timer: 'esp32/timer',
+            schedule: 'esp32/schedule',
+            tempRange: 'esp32/temp_range',
+            settings: 'esp32/settings',
+            requestSettings: 'esp32/request_settings',
+            resetNVS: 'esp32/reset_nvs',
+            requestTime: 'esp32/request_time',
+            timeResponse: 'esp32/time_response'
         };
+        
+        const tempData = { labels: [], values: [] };
 
-        // Chart Configuration
         const ctx = document.getElementById('tempChart').getContext('2d');
         const tempChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: tempData.labels,
                 datasets: [{
-                    label: 'Temperature (°C)',
+                    label: translations[currentLanguage].chartLabel,
                     data: tempData.values,
                     borderColor: 'var(--accent)',
-                    backgroundColor: 'rgba(247, 37, 133, 0.1)',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
                     borderWidth: 2,
                     tension: 0.3,
                     fill: true,
@@ -532,66 +741,26 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: 'var(--text-primary)',
-                            font: {
-                                size: 14
-                            }
-                        }
-                    }
-                },
+                plugins: { legend: { labels: { color: 'var(--text-secondary)' } } },
                 scales: {
-                    x: {
-                        grid: {
-                            color: 'var(--border)'
-                        },
-                        ticks: {
-                            color: 'var(--text-secondary)'
-                        }
-                    },
-                    y: {
-                        beginAtZero: false,
-                        grid: {
-                            color: 'var(--border)'
-                        },
-                        ticks: {
-                            color: 'var(--text-secondary)'
-                        }
-                    }
+                    x: { grid: { color: 'var(--border)' }, ticks: { color: 'var(--text-secondary)' } },
+                    y: { beginAtZero: false, grid: { color: 'var(--border)' }, ticks: { color: 'var(--text-secondary)' } }
                 }
             }
         });
 
-        // MQTT Connection
         const client = mqtt.connect(broker);
         updateConnectionStatus(false);
 
         client.on('connect', () => {
-            console.log('Connected to MQTT broker');
             updateConnectionStatus(true);
-            client.subscribe(tempTopic, { qos: 1 });
-            client.subscribe(ledTopic, { qos: 1 });
-            client.subscribe(heaterTopic, { qos: 1 });
-            client.subscribe(coolerTopic, { qos: 1 });
-            client.subscribe(timerTopic, { qos: 1 });
-            client.subscribe(scheduleTopic, { qos: 1 });
-            client.subscribe(tempRangeTopic, { qos: 1 });
-            client.subscribe(settingsTopic, { qos: 1 });
-            client.subscribe(timeTopic, { qos: 1 });
+            Object.values(topics).forEach(topic => {
+                if (topic) client.subscribe(topic, { qos: 1 });
+            });
         });
 
-        client.on('reconnect', () => {
-            console.log('Reconnecting to MQTT broker');
-            updateConnectionStatus(false);
-        });
-
-        client.on('offline', () => {
-            console.log('Disconnected from MQTT broker');
-            updateConnectionStatus(false);
-        });
-
+        client.on('reconnect', () => updateConnectionStatus(false));
+        client.on('offline', () => updateConnectionStatus(false));
         client.on('error', (error) => {
             console.error('MQTT Error:', error);
             updateConnectionStatus(false);
@@ -601,133 +770,148 @@
             const msg = message.toString();
             console.log(`Received message on ${topic}: ${msg}`);
             
-            if (topic === tempTopic) {
-                const temp = parseFloat(msg);
-                updateTemperature(temp);
-                updateChart(temp);
-            } else if (topic === ledTopic) {
-                document.getElementById('ledStatus').textContent = msg;
-            } else if (topic === heaterTopic) {
-                document.getElementById('heaterStatus').textContent = msg;
-            } else if (topic === coolerTopic) {
-                document.getElementById('coolerStatus').textContent = msg;
-            } else if (topic === settingsTopic) {
-                const [onTime, offTime, enabled, tempMin, tempMax] = msg.split(',');
-                document.getElementById('savedOnTime').textContent = onTime || '--';
-                document.getElementById('savedOffTime').textContent = offTime || '--';
-                document.getElementById('savedSchedulerStatus').textContent = enabled === '1' ? 'Enabled' : 'Disabled';
-                document.getElementById('savedTempMin').textContent = parseFloat(tempMin).toFixed(1) || '--';
-                document.getElementById('savedTempMax').textContent = parseFloat(tempMax).toFixed(1) || '--';
-                showToast('Saved settings loaded');
-            } else if (topic === timeTopic) {
-                document.getElementById('espTime').textContent = msg;
+            const statusKey = msg === 'ON' ? 'enabled' : (msg === 'OFF' ? 'disabled' : 'unknown');
+
+            switch(topic) {
+                case topics.temp:
+                    updateTemperature(parseFloat(msg));
+                    updateChart(parseFloat(msg));
+                    break;
+                case topics.led:
+                    document.getElementById('ledStatus').textContent = translations[currentLanguage][statusKey] || msg;
+                    break;
+                case topics.heater:
+                    document.getElementById('heaterStatus').textContent = translations[currentLanguage][statusKey] || msg;
+                    break;
+                case topics.cooler:
+                    document.getElementById('coolerStatus').textContent = translations[currentLanguage][statusKey] || msg;
+                    break;
+                case topics.timeResponse:
+                    document.getElementById('espTimeDisplay').textContent = msg;
+                    showToast(translations[currentLanguage].toastTimeReceived(msg));
+                    break;
+                case topics.settings:
+                    const [onTime, offTime, enabled, tempMin, tempMax] = msg.split(',');
+                    document.getElementById('savedOnTime').textContent = onTime || '--';
+                    document.getElementById('savedOffTime').textContent = offTime || '--';
+                    document.getElementById('savedSchedulerStatus').textContent = translations[currentLanguage][enabled === '1' ? 'enabled' : 'disabled'];
+                    document.getElementById('savedTempMin').textContent = (tempMin ? parseFloat(tempMin).toFixed(1) : '--');
+                    document.getElementById('savedTempMax').textContent = (tempMax ? parseFloat(tempMax).toFixed(1) : '--');
+                    showToast(translations[currentLanguage].toastSettingsLoaded);
+                    break;
             }
         });
 
         function updateConnectionStatus(connected) {
             const dot = document.getElementById('connectionDot');
-            const status = document.getElementById('connectionStatus');
-            
+            const statusEl = document.getElementById('connectionStatus');
+            const key = connected ? 'connected' : 'disconnected';
             if (connected) {
                 dot.className = 'connection-dot connected';
-                status.textContent = 'Connected to MQTT';
             } else {
                 dot.className = 'connection-dot';
-                status.textContent = 'Disconnected';
             }
+            statusEl.textContent = translations[currentLanguage][key];
         }
 
         function updateTemperature(temp) {
             document.getElementById('tempValue').textContent = temp.toFixed(1);
             const indicator = document.getElementById('tempStatus');
-            indicator.className = temp > 30 ? 'status-indicator warning' : 'status-indicator active';
+            const tempMax = parseFloat(document.getElementById('tempMax').value) || 30;
+            indicator.className = temp > tempMax ? 'status-indicator warning' : 'status-indicator active';
         }
 
         function updateChart(temp) {
             const now = new Date();
             const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            
             tempData.labels.push(time);
             tempData.values.push(temp);
-            
             if (tempData.labels.length > 20) {
                 tempData.labels.shift();
                 tempData.values.shift();
             }
-            
             tempChart.update();
         }
 
-        function sendCommand(cmd) {
+        function publish(topic, message) {
             if (client.connected) {
-                client.publish(ledTopic, cmd, { qos: 1 });
-                showToast(`Command sent: ${cmd}`);
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
+                client.publish(topic, message, { qos: 1 });
+                return true;
+            }
+            showToast(translations[currentLanguage].toastNotConnected, 'error');
+            return false;
+        }
+
+        function sendCommand(cmd) {
+            if (publish(topics.led, cmd)) {
+                showToast(translations[currentLanguage].toastCommandSent + cmd);
             }
         }
 
         function setTimer() {
             const seconds = parseInt(document.getElementById('timerInput').value);
             if (seconds && seconds > 0) {
-                if (client.connected) {
-                    client.publish(timerTopic, seconds.toString(), { qos: 1 });
-                    showToast(`Timer set for ${seconds} seconds`);
-                } else {
-                    showToast('Not connected to MQTT broker', 'error');
+                if (publish(topics.timer, seconds.toString())) {
+                    showToast(translations[currentLanguage].toastTimerSet(seconds));
                 }
             } else {
-                showToast('Please enter a valid time in seconds', 'error');
+                showToast(translations[currentLanguage].toastInvalidTime, 'error');
             }
         }
 
-        function enableScheduler() {
-            const onTime = document.getElementById('onTime').value;
-            const offTime = document.getElementById('offTime').value;
-            
-            if (!onTime || !offTime) {
-                showToast('Please set both ON and OFF times', 'error');
+        function setScheduler(enable) {
+            const formatTime = (hourId, minuteId) => {
+                const hEl = document.getElementById(hourId);
+                const mEl = document.getElementById(minuteId);
+                if (!hEl.value || !mEl.value) return null; // Both must be filled
+                const h = parseInt(hEl.value, 10);
+                const m = parseInt(mEl.value, 10);
+                if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+                    return null;
+                }
+                return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            };
+
+            const onTime = formatTime('onTimeHour', 'onTimeMinute');
+            const offTime = formatTime('offTimeHour', 'offTimeMinute');
+
+            if (enable && (!onTime || !offTime)) {
+                showToast(translations[currentLanguage].toastSetTimeError, 'error');
                 return;
             }
-            
-            if (client.connected) {
-                const message = `${onTime},${offTime},1`;
-                client.publish(scheduleTopic, message, { qos: 1 });
-                showToast(`Scheduler enabled: ON at ${onTime}, OFF at ${offTime}`);
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
-            }
-        }
 
-        function disableScheduler() {
-            const onTime = document.getElementById('onTime').value || '00:00';
-            const offTime = document.getElementById('offTime').value || '00:00';
-            if (client.connected) {
-                const message = `${onTime},${offTime},0`;
-                client.publish(scheduleTopic, message, { qos: 1 });
-                showToast('Scheduler disabled');
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
+            const finalOnTime = onTime || '00:00';
+            const finalOffTime = offTime || '00:00';
+
+            const message = `${finalOnTime},${finalOffTime},${enable ? 1 : 0}`;
+            if (publish(topics.schedule, message)) {
+                const toastMsg = enable 
+                    ? translations[currentLanguage].toastSchedulerEnabled(finalOnTime, finalOffTime)
+                    : translations[currentLanguage].toastSchedulerDisabled;
+                showToast(toastMsg);
             }
         }
+        
+        const enableScheduler = () => setScheduler(true);
+        const disableScheduler = () => setScheduler(false);
 
         function requestSettings() {
-            if (client.connected) {
-                client.publish(requestSettingsTopic, 'GET', { qos: 1 });
-                showToast('Requesting saved settings');
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
+            if (publish(topics.requestSettings, 'GET')) {
+                showToast(translations[currentLanguage].toastSettingsRequested);
             }
         }
 
         function resetNVS() {
-            if (client.connected) {
-                if (confirm('Are you sure you want to reset NVS? This will clear all saved settings.')) {
-                    client.publish(resetNVSTopic, 'RESET', { qos: 1 });
-                    showToast('NVS reset requested');
+            if (confirm(translations[currentLanguage].toastNvsResetConfirm)) {
+                if (publish(topics.resetNVS, 'RESET')) {
+                    showToast(translations[currentLanguage].toastNvsResetRequested);
                 }
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
+            }
+        }
+        
+        function requestEspTime() {
+            if (publish(topics.requestTime, 'GET')) {
+                showToast(translations[currentLanguage].toastTimeRequested);
             }
         }
 
@@ -736,18 +920,20 @@
             const tempMax = parseFloat(document.getElementById('tempMax').value);
             
             if (isNaN(tempMin) || isNaN(tempMax) || tempMin >= tempMax) {
-                showToast('Please enter valid temperature range (Min < Max)', 'error');
+                showToast(translations[currentLanguage].toastInvalidTempRange, 'error');
                 return;
             }
             
-            if (client.connected) {
-                const message = `${tempMin},${tempMax}`;
-                client.publish(tempRangeTopic, message, { qos: 1 });
-                showToast(`Temperature range set: ${tempMin}°C to ${tempMax}°C`);
-            } else {
-                showToast('Not connected to MQTT broker', 'error');
+            if (publish(topics.tempRange, `${tempMin},${tempMax}`)) {
+                showToast(translations[currentLanguage].toastTempRangeSet(tempMin, tempMax));
             }
         }
+        
+        window.onload = () => {
+            setLanguage('en');
+            document.body.classList.remove('light-mode');
+            updateThemeButtonText();
+        };
     </script>
 </body>
 </html>
